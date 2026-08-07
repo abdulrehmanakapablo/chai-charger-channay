@@ -1,0 +1,126 @@
+@import 'leaflet/dist/leaflet.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Remove default Leaflet pin backgrounds for divIcon markers */
+.custom-cluster-icon,
+.custom-pin-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ... rest of your Tailwind or custom CSS rules below ... */
+
+@layer base {
+  body {
+    background-color: #111412;
+    color: #e1e3df;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    overflow-x: hidden;
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* Extreme Glassmorphic Container Card */
+  .glass-card {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.005) 100%
+    ), rgba(11, 14, 12, 0.08);
+    backdrop-filter: blur(36px) saturate(240%);
+    -webkit-backdrop-filter: blur(36px) saturate(240%);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 24px;
+    box-shadow: 
+      0 20px 60px 0 rgba(0, 0, 0, 0.3),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.45);
+  }
+
+  .glass-panel {
+    background-color: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Input Fields */
+  .glass-input {
+    background: rgba(12, 15, 13, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    color: #e1e3df;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-input:focus {
+    border-color: #9cd2b6;
+    outline: none;
+    box-shadow: 0 0 12px rgba(156, 210, 182, 0.25);
+  }
+
+  .input-field {
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .input-field:focus {
+    border-color: #9cd2b6;
+    box-shadow: 0 0 0 1px #9cd2b6, 0 0 15px rgba(156, 210, 182, 0.2);
+    outline: none;
+  }
+
+  /* Floating Input Labels */
+  .floating-label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: all 0.2s ease-out;
+    pointer-events: none;
+    color: #c0c9c2;
+  }
+
+  .input-field:focus + .floating-label,
+  .input-field:not(:placeholder-shown) + .floating-label {
+    top: 0;
+    transform: translateY(-50%) scale(0.85);
+    background-color: #282b28;
+    padding: 0 0.25rem;
+    color: #9cd2b6;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    background-color: #174d38;
+    color: #87bda2;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.1);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e1e3df;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
+}
