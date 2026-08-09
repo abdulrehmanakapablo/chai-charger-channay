@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from 'react-leaflet';
 import { useParams, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -32,9 +32,20 @@ function MapClickHandler({ onClick }) {
   return null;
 }
 
+// Fly to user location when coordinates are available
+function FitMapToUser({ userLocation }) {
+  const map = useMap();
+  useEffect(() => {
+    if (userLocation) {
+      map.flyTo(userLocation, 15, { animate: true });
+    }
+  }, [userLocation, map]);
+  return null;
+}
+
 export default function ReviewPage() {
   const { categoryKey } = useParams();
-  const { user } = useAuth();                    // still used for login check
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [userLocation, setUserLocation] = useState(null);
   const [newSpotCoords, setNewSpotCoords] = useState(null);
@@ -92,7 +103,6 @@ export default function ReviewPage() {
   };
 
   const handleSubmitSuccess = async (formPayload) => {
-    // 1. Basic checks
     if (!user) {
       alert('You must be logged in to submit a review.');
       return;
@@ -102,7 +112,6 @@ export default function ReviewPage() {
       return;
     }
 
-    // 2. Get the live session – this is the source of truth for user ID
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       alert('Your session has expired. Please log in again.');
@@ -110,13 +119,11 @@ export default function ReviewPage() {
       return;
     }
 
-    const userId = session.user.id;   // ← guaranteed to match auth.uid()
-
+    const userId = session.user.id;
     setSubmitting(true);
 
-    // 3. Build the insert payload
     const dbPayload = {
-      user_id: userId,                          // from the live session
+      user_id: userId,
       category: categoryKey,
       spot_name:
         formPayload.spotName ||
@@ -148,7 +155,6 @@ export default function ReviewPage() {
       },
     };
 
-    // 4. Insert into the reviews table
     const { error } = await supabase.from('reviews').insert(dbPayload);
 
     setSubmitting(false);
@@ -179,14 +185,29 @@ export default function ReviewPage() {
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           />
           <MapClickHandler onClick={handleMapClick} />
-          {userLocation && <Marker position={userLocation} icon={userLocationIcon} />}
+          <FitMapToUser userLocation={userLocation} />
+          {userLocation && (
+            <>
+              <Marker position={userLocation} icon={userLocationIcon} />
+              <Circle
+                center={userLocation}
+                radius={500}
+                pathOptions={{
+                  color: '#00aaff',
+                  fillColor: '#00aaff',
+                  fillOpacity: 0.1,
+                  weight: 1,
+                }}
+              />
+            </>
+          )}
           {newSpotCoords && <Marker position={newSpotCoords} icon={newSpotIcon} />}
         </MapContainer>
       </div>
 
-      {/* Floating instruction */}
+      {/* Floating instruction – higher on mobile, unchanged on large */}
       {!showForm && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+        <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
           <div className="bg-[#191c1a]/80 backdrop-blur-lg border border-white/10 rounded-full px-5 py-2.5 text-xs text-[#c0c9c2] shadow-lg text-center max-w-[90vw]">
             <span className="material-symbols-outlined text-sm align-middle mr-1.5">touch_app</span>
             Tap on the map to pin your exact location and fill the review form

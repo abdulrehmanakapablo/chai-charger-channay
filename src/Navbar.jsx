@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import logo from './assets/logo.png';
 import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -32,30 +33,31 @@ export default function Navbar() {
   };
 
   const displayName = user?.username || user?.first_name || 'User';
+  const isDashboard = location.pathname === '/dashboard';
 
   return (
     <nav className="fixed top-0 left-0 w-full h-16 bg-[#0d1117]/95 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 z-50 shadow-lg">
       {/* Left: Logo + Name */}
       <div className="flex items-center gap-2">
-        <img src={logo} alt="Logo" className="h-9 w-9 rounded-full" />
+        <img src={logo} alt="Logo" className="h-10 w-10 rounded-full" />
         <span className="hidden sm:inline text-white font-bold text-lg tracking-tight">
           chai, charger and channay
         </span>
         <span className="sm:hidden text-white font-bold text-lg">CCC</span>
       </div>
 
-      {/* Center: Dashboard button – absolutely centered but responsive */}
-      <div className="absolute left-1/2 transform -translate-x-1/2">
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition whitespace-nowrap"
-        >
-          {/* Icon always visible */}
-          <span className="material-symbols-outlined text-lg">home</span>
-          {/* Text only on sm+ */}
-          <span className="hidden sm:inline">Back To Dashboard</span>
-        </button>
-      </div>
+      {/* Center: Dashboard button – absolutely centered, hidden on dashboard */}
+      {!isDashboard && (
+        <div className="absolute left-1/2 transform -translate-x-1/2">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition whitespace-nowrap"
+          >
+            <span className="material-symbols-outlined text-lg">home</span>
+            <span className="hidden sm:inline">Back To Dashboard</span>
+          </button>
+        </div>
+      )}
 
       {/* Right: Username + dropdown arrow */}
       <div className="relative flex items-center">

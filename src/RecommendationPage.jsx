@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
 import { useParams } from 'react-router-dom';
 import useSupercluster from 'use-supercluster';
 import L from 'leaflet';
@@ -73,6 +73,13 @@ const CATEGORY_CRITERIA = {
 const SEARCH_CATEGORIES = ['food', 'beverages'];
 
 // ==================== Map Icons ====================
+const userLocationIcon = L.divIcon({
+  html: `<div class="blinking-dot"></div>`,
+  className: '',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+
 const createClusterIcon = (count) =>
   L.divIcon({
     html: `<div style="background:#174d38;color:#fff;border:2px solid #9cd2b6;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,0.5)">${count}</div>`,
@@ -88,6 +95,17 @@ const createPinIcon = () =>
     iconSize: [18, 18],
     iconAnchor: [9, 9],
   });
+
+// ==================== Helper: auto-center map ====================
+function FitMapToUser({ userLocation }) {
+  const map = useMap();
+  useEffect(() => {
+    if (userLocation) {
+      map.flyTo(userLocation, 14, { animate: true });
+    }
+  }, [userLocation, map]);
+  return null;
+}
 
 // ==================== Cluster Markers ====================
 function ClusterMarkers({ spots, onSelectSpot }) {
@@ -178,6 +196,26 @@ export default function RecommendationPage() {
   const isSearchCategory = SEARCH_CATEGORIES.includes(categoryKey);
   const filterOptions = CATEGORY_CRITERIA[categoryKey] || [];
 
+  // Inject blinking-dot CSS once
+  useEffect(() => {
+    if (!document.getElementById('blinking-dot-style')) {
+      const style = document.createElement('style');
+      style.id = 'blinking-dot-style';
+      style.textContent = `
+        .blinking-dot {
+          width: 20px; height: 20px; background: #00aaff; border: 2px solid white;
+          border-radius: 50%; box-shadow: 0 0 10px #00aaff; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.7; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   // Get user location on mount
   useEffect(() => {
     if (navigator.geolocation) {
@@ -207,7 +245,7 @@ export default function RecommendationPage() {
           if (!error) setSpots(data);
           else console.error(error);
         } else if (!isSearchCategory && selectedFilterKey) {
-          const criteria = { [selectedFilterKey]: 8 }; // Minimum rating of 8
+          const criteria = { [selectedFilterKey]: 8 };
           const { data, error } = await supabase.rpc('filter_reviews_by_criteria', {
             p_category: categoryKey,
             p_lat: userLocation[0],
@@ -218,7 +256,6 @@ export default function RecommendationPage() {
           if (!error) setSpots(data);
           else console.error(error);
         } else {
-          // No criteria set -> clear results
           setSpots([]);
         }
       } catch (err) {
@@ -228,7 +265,6 @@ export default function RecommendationPage() {
       }
     };
 
-    // Debounce for search
     const handler = setTimeout(() => {
       fetchSpots();
     }, 500);
@@ -252,6 +288,22 @@ export default function RecommendationPage() {
             attribution='&copy; <a href="https://carto.com/">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           />
+          <FitMapToUser userLocation={userLocation} />
+          {userLocation && (
+            <>
+              <Marker position={userLocation} icon={userLocationIcon} />
+              <Circle
+                center={userLocation}
+                radius={1000}
+                pathOptions={{
+                  color: '#00aaff',
+                  fillColor: '#00aaff',
+                  fillOpacity: 0.1,
+                  weight: 1,
+                }}
+              />
+            </>
+          )}
           <ClusterMarkers spots={spots} onSelectSpot={(spot) => {
             setIsListOpen(true);
             setSelectedSpot(spot);
@@ -379,7 +431,7 @@ export default function RecommendationPage() {
         </div>
       )}
 
-      {/* Bottom Sheet Detail Modal (unchanged, but data from DB) */}
+      {/* Bottom Sheet Detail Modal */}
       {selectedSpot && (
         <div className="fixed inset-0 z-50 pointer-events-auto flex items-end justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full md:w-[480px] max-h-[85vh] bg-[#111412] border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col overflow-y-auto">
@@ -409,7 +461,6 @@ export default function RecommendationPage() {
                 <span className="text-xs text-[#9cd2b6]">{(selectedSpot.distance_meters / 1000).toFixed(1)} km</span>
               </div>
               <p className="text-sm text-[#c0c9c2] leading-relaxed">{selectedSpot.review_comment}</p>
-              {/* Show ratings if needed */}
             </div>
           </div>
         </div>
