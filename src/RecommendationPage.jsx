@@ -311,8 +311,8 @@ export default function RecommendationPage() {
         </MapContainer>
       </div>
 
-      {/* Top Bar: Search or Filter */}
-      <div className="absolute top-4 left-0 right-0 z-30 pointer-events-none flex justify-center items-center">
+      {/* Top Bar: Search or Filter (clears navbar on all screens) */}
+      <div className="absolute top-20 left-0 right-0 z-30 pointer-events-none flex justify-center items-center">
         <div className="relative pointer-events-auto">
           <div className="bg-[#191c1a]/80 backdrop-blur-xl border border-white/10 rounded-full p-1.5 flex items-center gap-2 shadow-2xl">
             {isSearchCategory ? (
