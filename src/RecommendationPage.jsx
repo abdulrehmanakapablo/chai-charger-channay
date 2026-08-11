@@ -72,6 +72,10 @@ const CATEGORY_CRITERIA = {
 
 const SEARCH_CATEGORIES = ['food', 'beverages'];
 
+// Minimum score (out of 10) a spot must have on the selected criterion
+// to show up when using the "Filter by Requirement" dropdown.
+const FILTER_MIN_RATING = 7;
+
 // ==================== Map Icons ====================
 const userLocationIcon = L.divIcon({
   html: `<div class="blinking-dot"></div>`,
@@ -245,13 +249,16 @@ export default function RecommendationPage() {
           if (!error) setSpots(data);
           else console.error(error);
         } else if (!isSearchCategory && selectedFilterKey) {
-          const criteria = { [selectedFilterKey]: 8 };
+          // FIXED: pass the criterion key + a minimum threshold instead of
+          // an exact-match object. The old { [key]: 8 } payload only ever
+          // matched spots rated EXACTLY 8/10 on that criterion.
           const { data, error } = await supabase.rpc('filter_reviews_by_criteria', {
             p_category: categoryKey,
             p_lat: userLocation[0],
             p_lng: userLocation[1],
             p_radius_meters: 20000,
-            p_criteria: criteria,
+            p_criteria_key: selectedFilterKey,
+            p_min_rating: FILTER_MIN_RATING,
           });
           if (!error) setSpots(data);
           else console.error(error);
