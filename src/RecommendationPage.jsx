@@ -72,10 +72,6 @@ const CATEGORY_CRITERIA = {
 
 const SEARCH_CATEGORIES = ['food', 'beverages'];
 
-// Minimum score (out of 10) a spot must have on the selected criterion
-// to show up when using the "Filter by Requirement" dropdown.
-const FILTER_MIN_RATING = 7;
-
 // ==================== Map Icons ====================
 const userLocationIcon = L.divIcon({
   html: `<div class="blinking-dot"></div>`,
@@ -231,40 +227,53 @@ export default function RecommendationPage() {
     }
   }, []);
 
-  // Perform search/filter when criteria changes
+  // Perform search/filter when criteria changes – now loads all by default
   useEffect(() => {
     if (!userLocation) return;
 
     const fetchSpots = async () => {
       setLoading(true);
       try {
+        let result = [];
+
         if (isSearchCategory && searchQuery.trim()) {
           const { data, error } = await supabase.rpc('search_reviews_text', {
             p_category: categoryKey,
             p_query: searchQuery.trim(),
             p_lat: userLocation[0],
             p_lng: userLocation[1],
-            p_radius_meters: 20000, // 20 km
+            p_radius_meters: 20000,
           });
-          if (!error) setSpots(data);
+          if (!error) result = data;
           else console.error(error);
         } else if (!isSearchCategory && selectedFilterKey) {
-          // FIXED: pass the criterion key + a minimum threshold instead of
-          // an exact-match object. The old { [key]: 8 } payload only ever
-          // matched spots rated EXACTLY 8/10 on that criterion.
+          // Filter by specific criterion
           const { data, error } = await supabase.rpc('filter_reviews_by_criteria', {
             p_category: categoryKey,
             p_lat: userLocation[0],
             p_lng: userLocation[1],
             p_radius_meters: 20000,
-            p_criteria_key: selectedFilterKey,
-            p_min_rating: FILTER_MIN_RATING,
+            p_criteria: { [selectedFilterKey]: 7 },   // min rating 7
           });
-          if (!error) setSpots(data);
+          if (!error) result = data;
           else console.error(error);
         } else {
-          setSpots([]);
+          // No search or filter active → load ALL spots in the category
+          const { data, error } = await supabase.rpc('filter_reviews_by_criteria', {
+            p_category: categoryKey,
+            p_lat: userLocation[0],
+            p_lng: userLocation[1],
+            p_radius_meters: 20000,
+            p_criteria: '{}',          // empty = return everything
+            p_limit: 20,
+          });
+          if (!error) result = data;
+          else console.error(error);
         }
+
+        setSpots(result);
+        // Automatically open the list if spots were found
+        setIsListOpen(result.length > 0);
       } catch (err) {
         console.error(err);
       } finally {
@@ -318,7 +327,7 @@ export default function RecommendationPage() {
         </MapContainer>
       </div>
 
-      {/* Top Bar: Search or Filter (clears navbar on all screens) */}
+      {/* Top Bar: Search or Filter */}
       <div className="absolute top-20 left-0 right-0 z-30 pointer-events-none flex justify-center items-center">
         <div className="relative pointer-events-auto">
           <div className="bg-[#191c1a]/80 backdrop-blur-xl border border-white/10 rounded-full p-1.5 flex items-center gap-2 shadow-2xl">
