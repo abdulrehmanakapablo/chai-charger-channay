@@ -40,7 +40,7 @@ export default function SignUpPage({ onSignUp }) {
     setCheckingUsername(true);
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('username')
         .eq('username', username.toLowerCase())
         .maybeSingle();

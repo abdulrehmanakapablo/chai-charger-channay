@@ -196,6 +196,13 @@ export default function RecommendationPage() {
   const isSearchCategory = SEARCH_CATEGORIES.includes(categoryKey);
   const filterOptions = CATEGORY_CRITERIA[categoryKey] || [];
 
+  // Reset filter/search state whenever category tab changes
+  useEffect(() => {
+    setSelectedFilterKey(null);
+    setSearchQuery('');
+    setSelectedSpot(null);
+  }, [categoryKey]);
+
   // Inject blinking-dot CSS once
   useEffect(() => {
     if (!document.getElementById('blinking-dot-style')) {
@@ -221,13 +228,13 @@ export default function RecommendationPage() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
-        () => console.log('Location access denied'),
+        (err) => console.error('Location error:', err),
         { enableHighAccuracy: true }
       );
     }
   }, []);
 
-  // Perform search/filter when criteria changes – now loads all by default
+  // Fetch spots when location, search query, or filter key updates
   useEffect(() => {
     if (!userLocation) return;
 
@@ -236,46 +243,38 @@ export default function RecommendationPage() {
       try {
         let result = [];
 
-        if (isSearchCategory && searchQuery.trim()) {
+        if (isSearchCategory) {
+          // Food or Beverages search
           const { data, error } = await supabase.rpc('search_reviews_text', {
             p_category: categoryKey,
             p_query: searchQuery.trim(),
             p_lat: userLocation[0],
             p_lng: userLocation[1],
             p_radius_meters: 20000,
+            p_limit: 30,
           });
-          if (!error) result = data;
-          else console.error(error);
-        } else if (!isSearchCategory && selectedFilterKey) {
-          // Filter by specific criterion
-          const { data, error } = await supabase.rpc('filter_reviews_by_criteria', {
-            p_category: categoryKey,
-            p_lat: userLocation[0],
-            p_lng: userLocation[1],
-            p_radius_meters: 20000,
-            p_criteria: { [selectedFilterKey]: 7 },   // min rating 7
-          });
-          if (!error) result = data;
-          else console.error(error);
+          if (!error && data) result = data;
+          else if (error) console.error('RPC Error:', error);
         } else {
-          // No search or filter active → load ALL spots in the category
+          // Workspaces, Hotels, Hostels, Airbnbs, Hidden Gems
+          // Fix: Matches exact PostgreSQL parameters p_criteria_key and p_min_rating
           const { data, error } = await supabase.rpc('filter_reviews_by_criteria', {
             p_category: categoryKey,
             p_lat: userLocation[0],
             p_lng: userLocation[1],
             p_radius_meters: 20000,
-            p_criteria: '{}',          // empty = return everything
-            p_limit: 20,
+            p_criteria_key: selectedFilterKey || null,
+            p_min_rating: 7,
+            p_limit: 30,
           });
-          if (!error) result = data;
-          else console.error(error);
+          if (!error && data) result = data;
+          else if (error) console.error('RPC Error:', error);
         }
 
         setSpots(result);
-        // Automatically open the list if spots were found
         setIsListOpen(result.length > 0);
       } catch (err) {
-        console.error(err);
+        console.error('Fetch spots error:', err);
       } finally {
         setLoading(false);
       }
@@ -283,7 +282,7 @@ export default function RecommendationPage() {
 
     const handler = setTimeout(() => {
       fetchSpots();
-    }, 500);
+    }, 400);
 
     return () => clearTimeout(handler);
   }, [searchQuery, selectedFilterKey, userLocation, categoryKey, isSearchCategory]);
@@ -320,10 +319,13 @@ export default function RecommendationPage() {
               />
             </>
           )}
-          <ClusterMarkers spots={spots} onSelectSpot={(spot) => {
-            setIsListOpen(true);
-            setSelectedSpot(spot);
-          }} />
+          <ClusterMarkers
+            spots={spots}
+            onSelectSpot={(spot) => {
+              setIsListOpen(true);
+              setSelectedSpot(spot);
+            }}
+          />
         </MapContainer>
       </div>
 
@@ -361,7 +363,7 @@ export default function RecommendationPage() {
                 </button>
                 {selectedFilterKey && (
                   <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#174d38] border border-[#9cd2b6] text-[#9cd2b6] text-xs font-medium whitespace-nowrap">
-                    <span>{filterOptions.find(f => f.id === selectedFilterKey)?.label}</span>
+                    <span>{filterOptions.find((f) => f.id === selectedFilterKey)?.label}</span>
                     <button onClick={() => setSelectedFilterKey(null)} className="ml-1 hover:text-white">
                       <span className="material-symbols-outlined text-xs">close</span>
                     </button>
@@ -371,7 +373,7 @@ export default function RecommendationPage() {
             )}
           </div>
 
-          {/* Filter Dropdown (only for non-search categories) */}
+          {/* Filter Dropdown */}
           {!isSearchCategory && isDropdownOpen && (
             <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-60 bg-[#191c1a]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-2xl z-40 flex flex-col gap-1 max-h-64 overflow-y-auto">
               {filterOptions.map((option) => (
@@ -407,7 +409,10 @@ export default function RecommendationPage() {
                   {spots.length} spot{spots.length !== 1 && 's'} found
                 </p>
               </div>
-              <button onClick={() => setIsListOpen(false)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
+              <button
+                onClick={() => setIsListOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center"
+              >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
@@ -435,7 +440,9 @@ export default function RecommendationPage() {
                       </div>
                     </div>
                     <p className="text-xs text-[#c0c9c2] mt-1">{spot.location}</p>
-                    <p className="text-xs text-[#c0c9c2]">{(spot.distance_meters / 1000).toFixed(1)} km away</p>
+                    <p className="text-xs text-[#c0c9c2]">
+                      {(spot.distance_meters / 1000).toFixed(1)} km away
+                    </p>
                     {spot.review_comment && (
                       <p className="text-xs text-[#c0c9c2] mt-1 line-clamp-2">{spot.review_comment}</p>
                     )}
@@ -456,7 +463,10 @@ export default function RecommendationPage() {
             </div>
             <div className="sticky top-0 bg-[#111412]/90 backdrop-blur-md px-6 py-4 border-b border-white/10 flex items-center justify-between z-10">
               <span className="text-xs font-bold uppercase text-[#9cd2b6]">{categoryKey}</span>
-              <button onClick={() => setSelectedSpot(null)} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center">
+              <button
+                onClick={() => setSelectedSpot(null)}
+                className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center"
+              >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -474,7 +484,9 @@ export default function RecommendationPage() {
                   <span className="text-lg font-bold text-white">{selectedSpot.overall_rating}</span>
                 </div>
                 <div className="w-px h-6 bg-white/10" />
-                <span className="text-xs text-[#9cd2b6]">{(selectedSpot.distance_meters / 1000).toFixed(1)} km</span>
+                <span className="text-xs text-[#9cd2b6]">
+                  {(selectedSpot.distance_meters / 1000).toFixed(1)} km
+                </span>
               </div>
               <p className="text-sm text-[#c0c9c2] leading-relaxed">{selectedSpot.review_comment}</p>
             </div>
